@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck 4 President</title>
+    <script src="static/htmx.min.js"></script>
+    <!-- <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script> -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #4a90e2;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+        }
+
+        nav {
+            margin-top: 10px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: bold;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-top: 30px;
+        }
+
+        .flex-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px;
+            flex-wrap: wrap;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 300px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        .container img {
+            border-radius: 5px;
+            margin-bottom: 15px;
+            transition: opacity 0.3s ease;
+        }
+
+        .container img:hover {
+            opacity: 0.8;
+            cursor: pointer;
+        }
+
+        .count-div {
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            color: #333;
+            background-color: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            min-width: 20px;
+            max-width: fit-content;
+            display: inline-block;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: width 0.3s ease;
+        }
+
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 20px 0;
+            margin-top: 30px;
+        }
+    </style>
+
+    <script>
+
+        const ws = new WebSocket('ws://' + window.location.host + '/ws');
+
+        ws.onopen = () => {
+            console.log('Connected');
+        };
+
+        ws.onmessage = (event) => {
+            // const data = JSON.parse(event.data);
+            console.log(event.data);
+            document.getElementById('output').innerHTML = event.data;
+        };
+
+        ws.onclose = (event) => {
+            console.log('websocket closed:', event);
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+    </script>
+
+
+
+</head>
+
+<body>
+    <header>
+        <h1>VOTE FOR YOUR 2024 PRESIDENT</h1>
+    </header>
+
+    <main>
+        <h2 id="candidates" style="text-align: center; margin-top: 30px;">Our Candidates</h2>
+        <div class="flex-container">
+            <div id="imgContainer2" class="container" hx-get="/vote/Kamala%20Harris" hx-target="#kh-div"
+                hx-swap="innerHTML">
+                <img src="images/KH.webp" alt="Kamala Harris" width="300">
+                <h3>Kamala Harris</h3>
+                <div id="kh-div" class="count-div">
+                    {{range .Noms}}{{if eq .Name "Kamala Harris"}}{{.VoteCnt}}{{end}}{{end}}
+                </div>
+            </div>
+            <!-- hx-get="/vote/Duck" hx-target="#duck-div" hx-swap="innerHTML" -->
+            <div id="imgContainer1" class="container" hx-get="/vote/Duck" hx-target="#duck-div" hx-swap="innerHTML">
+                <img src="images/d4p.jpg" alt="Duck 4 Prez" width="300">
+                <h3>Duck</h3>
+                <div id="duck-div" class="count-div">
+                    {{range .Noms}}{{if eq .Name "Duck"}}{{.VoteCnt}}{{end}}{{end}}
+                </div>
+            </div>
+            <div id="imgContainer3" class="container" hx-get="/vote/Donald%20Trump" hx-target="#dt-div"
+                hx-swap="innerHTML">
+                <img src="images/DT.avif" alt="Donald Trump" width="300">
+                <h3>Donald Trump</h3>
+                <div id="dt-div" class="count-div">
+                    {{range .Noms}}{{if eq .Name "Donald Trump"}}{{.VoteCnt}}{{end}}{{end}}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+
+        // document.getElementById('imgContainer1').addEventListener('click', () => {
+        //     // Retrieve current vote count from #duck-div
+        //     const voteDiv = document.getElementById('duck-div');
+        //     let currentVotes = parseInt(voteDiv.textContent.trim(), 10);
+        //
+        //     if (isNaN(currentVotes)) {
+        //         currentVotes = 0; // Initialize to 0 if parsing fails
+        //     }
+        //
+        //     // Increment the vote count
+        //     const updatedVotes = currentVotes + 1;
+        //
+        //     // Example payload to send to server
+        //     const votes = [
+        //         {Name: 'Duck', VoteCnt: updatedVotes}
+        //     ];
+        //
+        //     ws.send(JSON.stringify(votes));
+        //
+        //     // Optionally update the UI immediately
+        //     voteDiv.textContent = updatedVotes;
+        // });
+        //
+        // const voteDiv = document.getElementById('output');
+        // let currentVotes = parseInt(voteDiv.textContent.trim(), 10);
+        // console.log("current votes: " + currentVotes)
+        //
+        // function updateVoteCount(votes) {
+        //     votes.forEach(vote => {
+        //         const voteElement = document.querySelector(`#duck-div`);
+        //         if (voteElement) {
+        //             voteElement.textContent = `Candidate: ${vote.Name}, Votes: ${vote.VoteCnt}`;
+        //         }
+        //     });
+        // }
+
+        function updateAndSendVotes() {
+            const voteDiv = document.getElementById('duck-div');
+            let currentVotes = parseInt(voteDiv.textContent.trim(), 10);
+
+            if (isNaN(currentVotes)) {
+                currentVotes = 0; // Initialize to 0 if parsing fails
+            }
+
+            // Increment the vote count
+            const updatedVotes = currentVotes + 1;
+
+            // Example payload to send to server
+            const votes = [
+                {Name: 'Duck', VoteCnt: updatedVotes}
+            ];
+
+            ws.send(JSON.stringify(votes));
+
+            // Optionally update the UI immediately
+            voteDiv.textContent = updatedVotes;
+        }
+
+        // Call updateAndSendVotes every 2 seconds
+        // setInterval(updateAndSendVotes, 2000);
+
+    </script>
+
+
+    <p id="output"></p>
+
+    <footer>
+        <p>&copy; 2024 Duck 4 President Campaign. All rights reserved.</p>
+        <p>Disclaimer: This is a fictional website for entertainment purposes only.</p>
+    </footer>
+</body>
+
+</html>
