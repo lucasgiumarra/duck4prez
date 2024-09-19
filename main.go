@@ -115,6 +115,8 @@ func main() {
 	// Serve static files from the /home/lugiumarra/htmx directory
 	e.Static("/static", "/home/lugiumarra/htmx")
 	e.Static("/images", "/home/lugiumarra/duck4prez/main/images")
+	// Serve static CSS files
+	e.Static("/css", "/home/lugiumarra/duck4prez/main/css")
 	// e.Static("/", "home/lugiumarra/duck4prez/main")
 
 	renderer := &TemplateRenderer{

@@ -92,12 +92,12 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		log.Printf("Received message: %s", text)
+		log.Printf("Server received message from client: %s", text)
 
 		// Example of sending a broadcast message to all clients
 		message := &Message{
 			ClientID: c.id, // The client who sent this message
-			Data:     string(text),
+			Data:     text,
 		}
 		// Send the broadcast message to all connected clients
 		c.hub.broadcast <- message

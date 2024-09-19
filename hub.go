@@ -12,7 +12,7 @@ import (
 
 type Message struct {
 	ClientID string
-	Data     string
+	Data     []byte
 }
 
 type Hub struct {
@@ -84,7 +84,7 @@ func (h *Hub) broadcastVoteCounts(db *pgx.Conn) error {
 	// Broadcast the payload to all connected clients
 	h.broadcast <- &Message{
 		ClientID: "all", // You can set a general ID if necessary
-		Data:     string(payload),
+		Data:     payload,
 	}
 
 	// log.Println("Broadcasting vote counts to all clients")
