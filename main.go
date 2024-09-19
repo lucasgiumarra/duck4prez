@@ -7,9 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
-	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
@@ -29,43 +26,6 @@ type Nominee struct {
 
 type Nominees struct {
 	Noms []Nominee
-}
-
-type Stats struct {
-	Uptime       time.Time      `json:"uptime"`
-	RequestCount uint64         `json:"requestCount"`
-	Statuses     map[string]int `json:"statuses"`
-	IPCounts     map[string]int `json:"ipCounts"`
-	mutex        sync.RWMutex
-}
-
-func NewStats() *Stats {
-	return &Stats{
-		Uptime:   time.Now(),
-		Statuses: map[string]int{},
-		IPCounts: map[string]int{},
-	}
-}
-
-func (s *Stats) ProcessStats(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		if err := next(c); err != nil {
-			c.Error(err)
-		}
-		s.mutex.Lock()
-		defer s.mutex.Unlock()
-		s.RequestCount++
-
-		// Track status codes
-		status := strconv.Itoa(c.Response().Status)
-		s.Statuses[status]++
-
-		// Track request by IP address
-		ip := c.RealIP()
-		s.IPCounts[ip]++
-
-		return nil
-	}
 }
 
 type TemplateRenderer struct {
@@ -122,15 +82,10 @@ func getAllCandidates(db *pgx.Conn) (Nominees, error) {
 	return nominees, nil
 }
 
-func (s *Stats) Handle(c echo.Context) error {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return c.JSON(http.StatusOK, s)
-}
-
 func main() {
 	e := echo.New()
 	hub := NewHub()
+	go hub.Run()
 
 	// Enable debug mode
 	e.Debug = true
@@ -155,7 +110,6 @@ func main() {
 	}
 	defer db.Close(context.Background())
 
-	go hub.Run()
 	go hub.broadcastVoteCounts(db)
 
 	// Serve static files from the /home/lugiumarra/htmx directory
@@ -182,6 +136,22 @@ func main() {
 		ServeWs(hub, c.Response(), c.Request())
 		return nil
 	}) // WebSocket endpoint
+
+	e.GET("/getVotes", func(c echo.Context) error {
+		// Retrive all candidates' votes from database
+		votes, getVotesErr := getAllCandidates(db)
+		if getVotesErr != nil {
+			return c.String(http.StatusInternalServerError, "Error fetching votes")
+		}
+
+		return c.JSON(http.StatusOK, votes) // Return all votes as a JSON object
+		// candidate := c.Param("candidate")
+		// votes, votesErr := getVotes(db, candidate)
+		// if votesErr != nil {
+		// 	return c.String(http.StatusInternalServerError, "Error fetching votes")
+		// }
+		// return c.String(http.StatusOK, fmt.Sprintf("%d", votes))
+	})
 
 	e.GET("/vote/:candidate", func(c echo.Context) error {
 		candidate := c.Param("candidate")
