@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -17,9 +18,8 @@ const (
 	limitRequestPerMinute = 1000
 )
 
-type CandidateVote struct {
-	Name    string `json:"Name"`
-	VoteCnt int    `json:"VoteCnt"`
+type ClientVote struct {
+	Name string `json:"Name"`
 }
 
 type Client struct {
@@ -93,6 +93,13 @@ func (c *Client) readPump() {
 		}
 
 		log.Printf("Server received message from client: %s", text)
+
+		clientVote := &ClientVote{}
+		marshErr := json.Unmarshal(text, clientVote)
+		if marshErr != nil {
+			log.Printf("JSON unmarshaling error: %v\n", marshErr)
+		}
+		log.Printf("Client Vote: %v", clientVote.Name)
 
 		// Example of sending a broadcast message to all clients
 		message := &Message{

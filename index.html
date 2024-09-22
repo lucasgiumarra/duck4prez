@@ -62,7 +62,7 @@
         <div class="flex-container">
             <div id="imgContainer2" class="container" hx-get="/vote/Kamala%20Harris" hx-target="#kh-div"
                 hx-swap="innerHTML">
-                <img src="images/KH.webp" alt="Kamala Harris" width="300">
+                <img src="images/KH.jpg" alt="Kamala Harris" width="300">
                 <h3>Kamala Harris</h3>
                 <div id="kh-div" class="count-div">
                     {{range .Noms}}{{if eq .Name "Kamala Harris"}}{{.VoteCnt}}{{end}}{{end}}
