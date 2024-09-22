@@ -90,15 +90,6 @@ func main() {
 	// Enable debug mode
 	e.Debug = true
 
-	// Apply the rate limiter middleware globally
-	// timeoutConfig := middleware.TimeoutWithConfig(middleware.TimeoutConfig{
-	// 	Timeout: 5 * time.Minute,
-	// })
-	// rateLimiterConfig := middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
-	// 	Store: middleware.NewRateLimiterMemoryStoreWithConfig(
-	// 		middleware.RateLimiterMemoryStoreConfig{Rate: 50, Burst: 200, ExpiresIn: 5 * time.Minute},
-	// 	),
-	// })
 	s := NewStats()
 	e.Use(s.ProcessStats)
 	e.Use(middleware.Logger())
