@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -8,12 +9,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v4"
 )
 
 const (
 	writeWait             = 10 * time.Second
 	pingPeriod            = (pongWait * 9) / 10
-	pongWait              = 5 * time.Minute // Set inactivity timeout to 5 minutes
+	pongWait              = 5 * time.Second // Set inactivity timeout to 5 minutes
 	maxMessageSize        = 512
 	limitRequestPerMinute = 1000
 )
@@ -26,6 +28,7 @@ type Client struct {
 	id         string
 	hub        *Hub
 	conn       *websocket.Conn
+	dbConn     *pgx.Conn
 	send       chan []byte
 	lastActive time.Time // Track last activity time for rate limiting
 	request    int       // Track number of request
@@ -47,10 +50,16 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New().String()
 
+	dbConn, dbConnErr := connectDB()
+	if dbConnErr != nil {
+		log.Printf("ServeWs database connection error: %v\n", dbConnErr)
+	}
+
 	client := &Client{
 		id:         id,
 		hub:        hub,
 		conn:       conn,
+		dbConn:     dbConn,
 		send:       make(chan []byte),
 		lastActive: time.Now(),
 		request:    0,
@@ -61,9 +70,11 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	go client.readPump()
 }
 
+// Reading messages from a client
 func (c *Client) readPump() {
 	defer func() {
 		c.conn.Close()
+		c.dbConn.Close(context.Background())
 		c.hub.unregister <- c
 	}()
 
@@ -94,18 +105,35 @@ func (c *Client) readPump() {
 
 		log.Printf("Server received message from client: %s", text)
 
-		clientVote := &ClientVote{}
-		marshErr := json.Unmarshal(text, clientVote)
-		if marshErr != nil {
-			log.Printf("JSON unmarshaling error: %v\n", marshErr)
+		var clientVote *ClientVote
+		if string(text) == "ping" {
+			continue
+		} else {
+			// Unmarshal parses json and puts it into clientVote
+			marshErr := json.Unmarshal(text, &clientVote)
+			if marshErr != nil {
+				log.Printf("read pump: JSON unmarshaling error: %v\n", marshErr)
+			}
+			c.hub.update <- clientVote
 		}
-		log.Printf("Client Vote: %v", clientVote.Name)
 
-		// Example of sending a broadcast message to all clients
+		log.Printf("Client Vote: %v\n", clientVote.Name)
+
+		votes, votesErr := getVotes(c.dbConn, clientVote.Name)
+		if votesErr != nil {
+			log.Printf("readPump: getVotes err: %v\n", votesErr)
+		}
+
+		var votesByte []byte
+		votesByte = append(votesByte, byte(votes))
+		votesByte = append(votesByte, text...)
 		message := &Message{
 			ClientID: c.id, // The client who sent this message
-			Data:     text,
+			Data:     votesByte,
 		}
+		log.Printf("Votes: %v: \n", votes)
+		log.Printf("Message: %v\n", message)
+
 		// Send the broadcast message to all connected clients
 		c.hub.broadcast <- message
 
@@ -114,6 +142,8 @@ func (c *Client) readPump() {
 	}
 }
 
+// Writes messages from server to client
+// Sends periodic messages to keep connection alive
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -124,6 +154,7 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case msg, ok := <-c.send:
+			log.Printf("Server sent message to client: %s", msg)
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// Hub closed the channel
@@ -161,6 +192,7 @@ func (c *Client) writePump() {
 
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			// log.Println("Sending Ping")
 			pingErr := c.conn.WriteMessage(websocket.PingMessage, nil)
 			if pingErr != nil {
 				log.Printf("Error sending ping message: %v", pingErr)

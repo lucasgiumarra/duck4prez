@@ -13,6 +13,9 @@
 
         const ws = new WebSocket('ws://' + window.location.host + '/ws');
 
+        // Change binary type from "blob" to "arraybuffer"
+        ws.binaryType = "arraybuffer";
+
         function stringToByteArray(byteString) {
             // Remove brackets and whitespace, then split by commas
             const cleanedString = byteString.replace(/[\[\]]/g, ''); // Remove brackets
@@ -30,12 +33,24 @@
         };
 
         ws.onmessage = (event) => {
-            // console.log(event.data);
+            // console.log("Raw: " + event.data);
             const byteArray = stringToByteArray(event.data);
-            // console.log(a)
+
             let decoder = new TextDecoder("utf-8");
-            let str = decoder.decode(byteArray);
-            console.log("Message from server to client: \n" + str);
+            let message = decoder.decode(byteArray.slice(1)); // Decode starting from the second byte
+            let voteCnt = byteArray[0]; // Get the first byte as a number
+            let jsonMessage = JSON.parse(message);
+
+            console.log("Message from server to client: \n" + message);
+            console.log("Vote count: " + voteCnt);
+
+            // Assuming jsonMessage.Name contains the ID of the HTML element
+            const element = document.getElementById(jsonMessage.Name);
+            if (element) {
+                element.innerHTML = voteCnt; // Set the inner HTML to the vote count
+            } else {
+                console.error("Element not found: " + jsonMessage.Name);
+            }
         };
 
         ws.onclose = (event) => {
@@ -60,28 +75,27 @@
     <main>
         <h2 id="candidates" style="text-align: center; margin-top: 30px;">Our Candidates</h2>
         <div class="flex-container">
-            <div id="imgContainer2" class="container" hx-get="/vote/Kamala%20Harris" hx-target="#kh-div"
-                hx-swap="innerHTML">
+            <div id="imgContainer2" class="container">
                 <img src="images/KH.jpg" alt="Kamala Harris" width="300">
                 <h3>Kamala Harris</h3>
-                <div id="kh-div" class="count-div">
-                    {{range .Noms}}{{if eq .Name "Kamala Harris"}}{{.VoteCnt}}{{end}}{{end}}
+                <div id="Kamala Harris" class="count-div">
+                    <!-- {{range .Noms}}{{if eq .Name "Kamala Harris"}}{{.VoteCnt}}{{end}}{{end}} -->
                 </div>
             </div>
             <!-- hx-get="/vote/Duck" hx-target="#duck-div" hx-swap="innerHTML" -->
-            <div id="imgContainer1" class="container" hx-get="/vote/Duck" hx-target="#duck-div" hx-swap="innerHTML">
+            <div id="imgContainer1" class="container">
                 <img src="images/d4p.jpg" alt="Duck 4 Prez" width="300">
                 <h3>Duck</h3>
-                <div id="duck-div" class="count-div">
-                    {{range .Noms}}{{if eq .Name "Duck"}}{{.VoteCnt}}{{end}}{{end}}
+                <div id="Duck" class="count-div">
+
+                    <!-- {{range .Noms}}{{if eq .Name "Duck"}}{{.VoteCnt}}{{end}}{{end}} -->
                 </div>
             </div>
-            <div id="imgContainer3" class="container" hx-get="/vote/Donald%20Trump" hx-target="#dt-div"
-                hx-swap="innerHTML">
+            <div id="imgContainer3" class="container">
                 <img src="images/DT.avif" alt="Donald Trump" width="300">
                 <h3>Donald Trump</h3>
-                <div id="dt-div" class="count-div">
-                    {{range .Noms}}{{if eq .Name "Donald Trump"}}{{.VoteCnt}}{{end}}{{end}}
+                <div id="Donald Trump" class="count-div">
+                    <!-- {{range .Noms}}{{if eq .Name "Donald Trump"}}{{.VoteCnt}}{{end}}{{end}} -->
                 </div>
             </div>
         </div>

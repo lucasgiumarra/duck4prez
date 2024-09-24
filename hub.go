@@ -2,12 +2,9 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"html/template"
 	"log"
 	"sync"
-
-	"github.com/jackc/pgx/v4"
 )
 
 type Message struct {
@@ -18,8 +15,8 @@ type Message struct {
 type Hub struct {
 	sync.RWMutex
 	clients    map[*Client]bool
-	messages   []*Message
 	broadcast  chan *Message
+	update     chan *ClientVote
 	register   chan *Client
 	unregister chan *Client
 }
@@ -28,6 +25,7 @@ func NewHub() *Hub {
 	return &Hub{
 		clients:    make(map[*Client]bool),
 		broadcast:  make(chan *Message),
+		update:     make(chan *ClientVote),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
@@ -51,7 +49,6 @@ func (h *Hub) Run() {
 			h.Unlock()
 		case msg := <-h.broadcast:
 			h.Lock()
-			h.messages = append(h.messages, msg)
 			for client := range h.clients {
 				select {
 				case client.send <- getMessageTemplate(msg):
@@ -62,52 +59,22 @@ func (h *Hub) Run() {
 				}
 			}
 			h.Unlock()
+		case clientVote := <-h.update:
+			h.Lock()
+			dbConn, dbConnErr := connectDB()
+			if dbConnErr != nil {
+				log.Printf("Connection to database failed %s\n", dbConnErr)
+			}
+			incrementVoteErr := incrementVote(dbConn, clientVote.Name)
+			if incrementVoteErr != nil {
+				log.Printf("Error incrementing vote for %v: %v\n", clientVote.Name, incrementVoteErr)
+			} else {
+				log.Printf("Vote incremented for %v\n", clientVote.Name)
+			}
+			h.Unlock()
 		}
 	}
 }
-
-func (h *Hub) broadcastVoteCounts(db *pgx.Conn) error {
-	// Fetch all the votes at once
-	votes, getVotesErr := getAllCandidates(db)
-	if getVotesErr != nil {
-		log.Println("Error fetching votes:", getVotesErr)
-		return getVotesErr
-	}
-
-	// Marshal the vote counts into a single JSON payload
-	payload, marshErr := json.Marshal(votes.Noms)
-	if marshErr != nil {
-		log.Println("Error marshalling votes:", marshErr)
-		return marshErr
-	}
-
-	// Broadcast the payload to all connected clients
-	h.broadcast <- &Message{
-		ClientID: "all", // You can set a general ID if necessary
-		Data:     payload,
-	}
-
-	// log.Println("Broadcasting vote counts to all clients")
-	log.Printf("Broadcasting payload: %s\n", string(payload))
-	return nil
-}
-
-// func (h *Hub) broadcastVoteCounts(db *pgx.Conn) error {
-// 	// Fetch the vote counts only when needed
-// 	votes, err := getAllCandidates(db)
-// 	if err != nil {
-// 		log.Println("Error fetching votes:", err)
-// 		return err
-// 	}
-//
-// 	for _, nominee := range votes.Noms {
-// 		// Send the updated vote counts to the connected clients
-// 		h.broadcast <- &Message{ClientID: nominee.Name, Data: nominee.VoteCnt}
-// 		log.Printf("Name: %v, Count: %v\n", nominee.Name, nominee.VoteCnt)
-// 	}
-//
-// 	return nil
-// }
 
 func getMessageTemplate(msg *Message) []byte {
 	tmpl, parseErr := template.ParseFiles("div-count-template.html")

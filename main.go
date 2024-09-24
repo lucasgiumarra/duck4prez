@@ -101,8 +101,6 @@ func main() {
 	}
 	defer db.Close(context.Background())
 
-	go hub.broadcastVoteCounts(db)
-
 	// Serve static files from the /home/lugiumarra/htmx directory
 	e.Static("/static", "/home/lugiumarra/htmx")
 	e.Static("/images", "/home/lugiumarra/duck4prez/main/images")
@@ -157,6 +155,15 @@ func main() {
 			return c.String(http.StatusInternalServerError, "Error fetching votes")
 		}
 		return c.String(http.StatusOK, fmt.Sprintf("%d", votes))
+	})
+
+	e.GET("/get/:candidate", func(c echo.Context) error {
+		candidate := c.Param("candidate")
+		voteCount, errVoteCount := getVotes(db, candidate)
+		if errVoteCount != nil {
+			return c.String(http.StatusInternalServerError, "Error fetching vote count")
+		}
+		return c.String(http.StatusOK, fmt.Sprintf("%d", voteCount))
 	})
 
 	e.Logger.Fatal(e.Start(":42069"))
