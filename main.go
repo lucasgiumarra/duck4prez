@@ -37,7 +37,7 @@ func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c 
 }
 
 func connectDB() (*pgx.Conn, error) {
-	conn, err := pgx.Connect(context.Background(), "postgresql://lugiumarra:BoatsandHoes11$@localhost:5432/nominees")
+	conn, err := pgx.Connect(context.Background(), "postgres://postgres:rPocFaOp5VP3kP8@d4p-db.flycast:5432")
 	if err != nil {
 		return nil, err
 	}
