@@ -166,5 +166,5 @@ func main() {
 		return c.String(http.StatusOK, fmt.Sprintf("%d", voteCount))
 	})
 
-	e.Logger.Fatal(e.Start(":42069"))
+	e.Logger.Fatal(e.Start(":8080"))
 }
