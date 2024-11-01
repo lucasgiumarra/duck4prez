@@ -4,3 +4,4 @@ tmp/main
 fly.toml
 Dockerfile
 .github
+.env

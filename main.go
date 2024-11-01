@@ -102,14 +102,14 @@ func main() {
 	defer db.Close(context.Background())
 
 	// Serve static files from the /home/lugiumarra/htmx directory
-	e.Static("/static", "/home/lugiumarra/htmx")
-	e.Static("/images", "/home/lugiumarra/duck4prez/main/images")
+	// e.Static("/static", "/home/lugiumarra/htmx")
+	e.Static("/images", "/usr/local/bin/images")
 	// Serve static CSS files
-	e.Static("/css", "/home/lugiumarra/duck4prez/main/css")
+	e.Static("/css", "/usr/local/bin/css")
 	// e.Static("/", "home/lugiumarra/duck4prez/main")
 
 	renderer := &TemplateRenderer{
-		templates: template.Must(template.ParseGlob("index.html")),
+		templates: template.Must(template.ParseGlob("/usr/local/bin/index.html")),
 	}
 	e.Renderer = renderer
 

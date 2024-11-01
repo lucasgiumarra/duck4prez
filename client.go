@@ -15,7 +15,7 @@ import (
 const (
 	writeWait             = 10 * time.Second
 	pingPeriod            = (pongWait * 9) / 10
-	pongWait              = 5 * time.Second // Set inactivity timeout to 5 minutes
+	pongWait              = 2 * time.Minute // Set inactivity timeout to 2 minutes
 	maxMessageSize        = 512
 	limitRequestPerMinute = 1000
 )
@@ -47,13 +47,23 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Println("Error while upgrading connection", err)
 		return
 	}
+	// Ensure connection is closed when the function exits
+	defer conn.Close()
 
 	id := uuid.New().String()
 
 	dbConn, dbConnErr := connectDB()
 	if dbConnErr != nil {
 		log.Printf("ServeWs database connection error: %v\n", dbConnErr)
+		return // Early return if database connection fails
 	}
+	// Ensure database connection is closed when the function exits, if applicable
+	// defer func() {
+	// 	dbCloseErr := dbConn.Close(context.Background())
+	// 	if dbCloseErr != nil {
+	// 		log.Printf("Error closing database connection: %v\n", dbCloseErr)
+	// 	}
+	// }()
 
 	client := &Client{
 		id:         id,
@@ -64,7 +74,7 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		lastActive: time.Now(),
 		request:    0,
 	}
-
+	log.Printf("Client registered: %s\n", client.id)
 	client.hub.register <- client
 	go client.writePump()
 	go client.readPump()
@@ -76,6 +86,7 @@ func (c *Client) readPump() {
 		c.conn.Close()
 		c.dbConn.Close(context.Background())
 		c.hub.unregister <- c
+		log.Println("Closing connections")
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
@@ -89,9 +100,9 @@ func (c *Client) readPump() {
 		_, text, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("unexpected close error: %v", err)
+				log.Printf("unexpected close error for client %s: %v", c.id, err)
 			} else {
-				log.Printf("read error: %v", err)
+				log.Printf("read error for client %s: %v", c.id, err)
 			}
 			break
 		}
@@ -103,7 +114,7 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		log.Printf("Server received message from client: %s", text)
+		log.Printf("Server received message from client%s: %s", c.id, text)
 
 		var clientVote *ClientVote
 		if string(text) == "ping" {
@@ -112,7 +123,8 @@ func (c *Client) readPump() {
 			// Unmarshal parses json and puts it into clientVote
 			marshErr := json.Unmarshal(text, &clientVote)
 			if marshErr != nil {
-				log.Printf("read pump: JSON unmarshaling error: %v\n", marshErr)
+				log.Printf("read pump for client %s: JSON unmarshaling error: %v\n", c.id, marshErr)
+				continue // Skip to the next iteration
 			}
 			c.hub.update <- clientVote
 		}
@@ -122,6 +134,8 @@ func (c *Client) readPump() {
 		votes, votesErr := getVotes(c.dbConn, clientVote.Name)
 		if votesErr != nil {
 			log.Printf("readPump: getVotes err: %v\n", votesErr)
+		} else {
+			log.Printf("Votes for %s: %v\n", clientVote.Name, votes)
 		}
 
 		var votesByte []byte
@@ -131,8 +145,7 @@ func (c *Client) readPump() {
 			ClientID: c.id, // The client who sent this message
 			Data:     votesByte,
 		}
-		log.Printf("Votes: %v: \n", votes)
-		log.Printf("Message: %v\n", message)
+		log.Printf("Broadcasting message for client %s: %v\n", c.id, message)
 
 		// Send the broadcast message to all connected clients
 		c.hub.broadcast <- message
@@ -154,7 +167,6 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case msg, ok := <-c.send:
-			log.Printf("Server sent message to client: %s", msg)
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// Hub closed the channel
@@ -189,6 +201,7 @@ func (c *Client) writePump() {
 				log.Printf("Error closing writer: %v", closeErr)
 				return
 			}
+			log.Printf("Server sent message to client: %s", msg)
 
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))

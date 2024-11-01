@@ -52,6 +52,7 @@ func (h *Hub) Run() {
 			for client := range h.clients {
 				select {
 				case client.send <- getMessageTemplate(msg):
+					log.Printf("Message sent to client %s", client.id)
 				default:
 					log.Printf("Failed to send message to client %s, unregistering", client.id)
 					delete(h.clients, client)
@@ -77,7 +78,7 @@ func (h *Hub) Run() {
 }
 
 func getMessageTemplate(msg *Message) []byte {
-	tmpl, parseErr := template.ParseFiles("div-count-template.html")
+	tmpl, parseErr := template.ParseFiles("/usr/local/bin/div-count-template.html")
 	if parseErr != nil {
 		log.Fatalf("template parsing error: %s", parseErr)
 	}

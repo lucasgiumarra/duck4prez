@@ -6,12 +6,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Duck 4 President</title>
-    <script src="static/htmx.min.js"></script>
+    <!-- <script src="static/htmx.min.js"></script> -->
     <!-- <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script> -->
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="/css/styles.css">
     <script>
+        const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
 
-        const ws = new WebSocket('ws://' + window.location.host + '/ws');
+        const ws = new WebSocket(protocol + window.location.host + '/ws');
 
         // Change binary type from "blob" to "arraybuffer"
         ws.binaryType = "arraybuffer";
@@ -39,7 +40,14 @@
             let decoder = new TextDecoder("utf-8");
             let message = decoder.decode(byteArray.slice(1)); // Decode starting from the second byte
             let voteCnt = byteArray[0]; // Get the first byte as a number
-            let jsonMessage = JSON.parse(message);
+            // let jsonMessage = JSON.parse(message);
+            try {
+                let jsonMessage = JSON.parse(message);
+            } catch (error) {
+                console.error('Error parsing JSON:', error);
+                return;
+            }
+
 
             console.log("Message from server to client: \n" + message);
             console.log("Vote count: " + voteCnt);
@@ -76,7 +84,7 @@
         <h2 id="candidates" style="text-align: center; margin-top: 30px;">Our Candidates</h2>
         <div class="flex-container">
             <div id="imgContainer2" class="container">
-                <img src="images/KH.jpg" alt="Kamala Harris" width="300">
+                <img src="/images/KH.jpg" alt="Kamala Harris" width="300">
                 <h3>Kamala Harris</h3>
                 <div id="Kamala Harris" class="count-div">
                     <!-- {{range .Noms}}{{if eq .Name "Kamala Harris"}}{{.VoteCnt}}{{end}}{{end}} -->
@@ -84,7 +92,7 @@
             </div>
             <!-- hx-get="/vote/Duck" hx-target="#duck-div" hx-swap="innerHTML" -->
             <div id="imgContainer1" class="container">
-                <img src="images/d4p.jpg" alt="Duck 4 Prez" width="300">
+                <img src="/images/d4p.jpg" alt="Duck 4 Prez" width="300">
                 <h3>Duck</h3>
                 <div id="Duck" class="count-div">
 
@@ -92,7 +100,7 @@
                 </div>
             </div>
             <div id="imgContainer3" class="container">
-                <img src="images/DT.avif" alt="Donald Trump" width="300">
+                <img src="/images/DT.avif" alt="Donald Trump" width="300">
                 <h3>Donald Trump</h3>
                 <div id="Donald Trump" class="count-div">
                     <!-- {{range .Noms}}{{if eq .Name "Donald Trump"}}{{.VoteCnt}}{{end}}{{end}} -->
@@ -114,9 +122,15 @@
         }
 
         // Attach click event listeners to each container
-        document.getElementById('imgContainer2').addEventListener('click', () => trackClicks("Kamala Harris"));
-        document.getElementById('imgContainer1').addEventListener('click', () => trackClicks("Duck"));
-        document.getElementById('imgContainer3').addEventListener('click', () => trackClicks("Donald Trump"));
+        // document.getElementById('imgContainer2').addEventListener('click', () => trackClicks("Kamala Harris"));
+        // document.getElementById('imgContainer1').addEventListener('click', () => trackClicks("Duck"));
+        // document.getElementById('imgContainer3').addEventListener('click', () => trackClicks("Donald Trump"));
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('imgContainer2').addEventListener('click', () => trackClicks("Kamala Harris"));
+            document.getElementById('imgContainer1').addEventListener('click', () => trackClicks("Duck"));
+            document.getElementById('imgContainer3').addEventListener('click', () => trackClicks("Donald Trump"));
+        });
+
 
     </script>
 
